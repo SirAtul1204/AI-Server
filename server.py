@@ -6,6 +6,10 @@ from tensorflow.keras.models import load_model
 import pickle
 from keras.utils import load_img
 import os
+from io import BytesIO
+from PIL import Image
+import requests
+import random
 
 app = Flask(__name__)
 
@@ -33,16 +37,20 @@ def predictText():
 
 @app.route("/predictImage", methods=["POST"])
 def predictImage():
-    f = request.files["file"]
-    f.save(f.filename)
-    image = load_img(f.filename, target_size=(224, 224))
+    data = request.get_json()
+    x = requests.get(data["url"]).content
+    fileName = str(random.randint(1, 1000)) + "." + data["url"].split(".")[-1]
+    f = open(fileName, "wb")
+    f.write(x)
+    f.close()
+    image = load_img(fileName, target_size=(224, 224))
     img = np.array(image)
     img = img / 255.0
     img = img.reshape(1, 224, 224, 3)
     probability = imageModel.predict(img)
     response = dict()
     response["prediction"] = str(0 if probability[0][0] <= 0.50 else 1)
-    os.remove(f.filename)
+    os.remove(fileName)
     return jsonify(response)
 
 
